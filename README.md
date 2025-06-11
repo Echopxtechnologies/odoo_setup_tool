@@ -34,8 +34,12 @@ This Python script automates the **complete installation and configuration of Od
 
 ```bash
 git clone https://github.com/Echopxtechnologies/odoo_setup_tool.git
+
+```
+```
 python3 odoo_setup_tool/odoo.py
 ```
+
 ---
 # ☝️ During execution, the script will prompt you to:
 
