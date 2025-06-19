@@ -6,7 +6,7 @@ import stat
 import shutil
 import time 
 
-# Function to kill existing apt processes
+
 
 def error(message):
     print(f"Error: {message}")
@@ -19,19 +19,37 @@ def run_command(command, shell=False, capture_output=False):
     except subprocess.CalledProcessError as e:
         error(f"Command failed: {e}")
 
-class OdooInstaller:
-
+class Version:
+    def __init__(self):
+        self.commands = []
+        self.vers = input("Which version of Odoo do you want to install? [14, 15, 16, 17, 18]: ").strip()
+    
     def install(self):
-        print("** Installing Odoo 18... **")
+        if self.vers == "14" or self.vers == "15" or self.vers == "16" or self.vers == "17" or self.vers == "18" or self.vers == "19" or self.vers == "20":
+            print(f"Installing Odoo {self.vers}...")
+            self.commands = [
+                ("** Add Odoo GPG key **", "wget -O - https://nightly.odoo.com/odoo.key | sudo gpg --dearmor -o /usr/share/keyrings/odoo-archive-keyring.gpg", True),
+                (f"** Add Odoo repository **", f"echo 'deb [signed-by=/usr/share/keyrings/odoo-archive-keyring.gpg] https://nightly.odoo.com/{self.vers}.0/nightly/deb/ ./' | sudo tee /etc/apt/sources.list.d/odoo.list", True),
+            ]
+        else:
+            print("Invalid selection. Please enter 14, 15, 16, 17, or 18.")
+            sys.exit(1)
 
+    def run(self):
+        self.install()
+        for desc, cmd, shell in self.commands:
+            try:
+                print(f"{desc} ...")
+                run_command(cmd, shell=shell)
+                print(f"---> Success: {desc}...........................................[OK]")
+            except Exception as e:
+                print(f"---> Failed: {desc} — {e}")
+
+
+#Install dependencies and odoo 
+class OdooInstaller:
+    def install(self):
         commands = [
-            # Add Odoo GPG key
-            
-            ("** Add Odoo GPG key **", "wget -O - https://nightly.odoo.com/odoo.key | sudo gpg --dearmor -o /usr/share/keyrings/odoo-archive-keyring.gpg", True),
-            
-            # Add Odoo repo
-            ("** Add Odoo repository **", "echo 'deb [signed-by=/usr/share/keyrings/odoo-archive-keyring.gpg] https://nightly.odoo.com/18.0/nightly/deb/ ./' | sudo tee /etc/apt/sources.list.d/odoo.list", True),
-            
             # System update and Odoo install
             ("Updating the server","sudo apt update && apt upgrade -y",True),
             ("** Install Odoo **", ["sudo", "apt", "install", "-y", "odoo"], False),
@@ -87,8 +105,7 @@ class OdooInstaller:
             print(f"==>  wkhtmltopdf Version: {wkhtmltopdf_v}")
         except Exception as e:
             print(f"==>  Version check failed: {e}")
-
-
+    
     def restart_odoo(self):
         try:
             subprocess.run(["sudo", "systemctl", "restart", "odoo"], check=True)
@@ -110,7 +127,6 @@ def print_banner():
     print("$$    $$/ $$    $$/ $$    $$/ $$    $$/     $$    $$/ $$       |   $$ |   $$    $$/ $$ |             $$ |  $$    $$/ $$    $$/ $$       |")
     print(" $$$$$$/  $$$$$$$/   $$$$$$/   $$$$$$/       $$$$$$/  $$$$$$$$/    $$/     $$$$$$/  $$/              $$/    $$$$$$/   $$$$$$/  $$$$$$$$/ ")
     print("\n\n\n")
-
 
 
 # Postgres related class
@@ -232,6 +248,10 @@ class PostgresSetup:
 
         print("** PostgreSQL setup completed successfully. **")
 
+
+
+
+#erpinstaller
 class tools_files:
     def __init__(self,php_version):
         self.php_version = php_version
@@ -379,32 +399,6 @@ class write_data_file:
             print("Certbot SSL installed successfully.")
         except Exception as e:
             print(f"Error running certbot: {e}")
-
-
-class add_crontab:
-
-    def run(self):
-        cron_command = '0 7 1 * * /usr/bin/sudo certbot renew --force-renewal >> /var/log/certbot-renew.log 2>&1'
-
-        # Read current root crontab
-        try:
-            existing_crontab = subprocess.check_output(['sudo', 'crontab', '-l'], text=True)
-        except subprocess.CalledProcessError:
-            # No crontab exists yet
-            existing_crontab = ''
-
-        # Check if the job already exists
-        if cron_command in existing_crontab:
-            print("Cron job already exists.")
-        else:
-            # Append the new cron job
-            new_crontab = existing_crontab + '\n' + cron_command + '\n'
-
-            # Write the updated crontab
-            process = subprocess.Popen(['sudo', 'crontab', '-'], stdin=subprocess.PIPE, text=True)
-            process.communicate(new_crontab)
-            print("Cron job added.")
-
 
 class database_setup:
     def __init__(self, db_name):
@@ -565,72 +559,140 @@ odoo ALL=(ALL) NOPASSWD: /usr/bin/rm /etc/odoo/*
         else:
             print(" Syntax error in temporary sudoers file. Aborting.")
 
-def main():
-    print_banner()
-    if os.path.exists("/etc/odoo/odoo.conf"):
-        response = input("Odoo is already installed. Reinstall? (y/n): ")
-        if response.lower() != 'y':
-            sys.exit("Aborted.")
+class add_crontab:
 
-    installer = OdooInstaller()
-    installer.install()
+    def run(self):
+        cron_command = '0 7 1 * * /usr/bin/sudo certbot renew --force-renewal >> /var/log/certbot-renew.log 2>&1'
+
+        # Read current root crontab
+        try:
+            existing_crontab = subprocess.check_output(['sudo', 'crontab', '-l'], text=True)
+        except subprocess.CalledProcessError:
+            # No crontab exists yet
+            existing_crontab = ''
+
+        # Check if the job already exists
+        if cron_command in existing_crontab:
+            print("Cron job already exists.")
+        else:
+            # Append the new cron job
+            new_crontab = existing_crontab + '\n' + cron_command + '\n'
+
+            # Write the updated crontab
+            process = subprocess.Popen(['sudo', 'crontab', '-'], stdin=subprocess.PIPE, text=True)
+            process.communicate(new_crontab)
+            print("Cron job added.")
+
+class ask:
+    def __init__(self):
+        self.odoo = input("Do you want to install Odoo? [y/n]: ")
+        self.webmin = input("Do you want to install Webmin? [y/n]: ")
+        self.erpinstaller = input("Do you want to install ERPInstalliner? [y/n]: ")
+        self.certbot = input("Do you want to install Certbot? [y/n]: ")
+    def odoo_in(self):
+        return self.odoo.lower() == "y"
+
+    def webmin_in(self):
+        return self.webmin.lower() == "y"
+
+    def erpinstaller_in(self):
+        return self.erpinstaller.lower() == "y"
+    
+    def certbot_in(self):
+        return self.certbot.lower() == "y"
+
+
+def main():
+    # Banner
+    print_banner()
+    print("Welcome to the Odoo installer!")
+    print("Note: To paste the data, simply right-click your mouse.")
     print("-----------------------------------------------------------------------------------------------------------")
     print("\n")
     master_password = input("===> Please enter a new password for postgres database: ")
-    odoo_password = input("===> Please enter a new password for odoo user: ")
-    domain = input("===> Enter your domain (e.g., echopx.org). It will be used as erpinstall.<yourdomain>: ")
-    bearer_token = input("====> Enter bearer token: ")
     print("\n")
     print("-----------------------------------------------------------------------------------------------------------")
-    pg = PostgresSetup(master_password, odoo_password)
-    pg.setup()
-    installer.restart_odoo()
-    installer.change_file_permis()
-    php_version = "8.1"
-    tools = tools_files(php_version)
-    tools.install_permission()
-    data = write_data_file(domain, master_password, bearer_token)
-    data.write_env()
-    data.create_nginx_config()
-    data.sim_link()
-
-    # TEST nginx
-    os.system("sudo nginx -t && sudo systemctl restart nginx")
-
-    # Run certbot
-    data.run_certbot()
-
-    db_name = "instance_db"
-    db = database_setup(db_name)
-    db.create_database()
-    try:
-        # Call the function
-        add_permission()
-        print("** Permission's added successfully **")
-    except Exception as e:
-        print(f"Error Unable to add the permission's snippet to the sudoers file: {e}")
-
-    try:
-        subprocess.run("sudo chmod +x /var/www/instance/htdocs/remove_instance.py",True)
-    except Exception as e:
-        print(f"Error Changing mod of remove_instance.py: {e}")
-    try:
-        installer = Install()
-        installer.Webmin()
-    except Exception as e:
-        print(f"Error Unable to install webmin: {e}")
-
-    try:
-        c = add_crontab()
-        c.run()
-    except:
-        print("Unable to add cronjob")
     
+    q = ask()
+    if q.odoo_in() :
+        if os.path.exists("/etc/odoo/odoo.conf"):
+            response = input("Odoo is already installed. Reinstall? (y/n): ")
+            if response.lower() != 'y':
+                sys.exit("Aborted.")
+        
+        v = Version()
+        v.run()
+        installer = OdooInstaller()
+        installer.install()
+        print("-----------------------------------------------------------------------------------------------------------")
+        print("\n")
+        odoo_password = input("===> Please enter a new password for odoo user: ")
+        print("\n")
+        print("-----------------------------------------------------------------------------------------------------------")
+        pg = PostgresSetup(master_password, odoo_password)
+        pg.setup()
+        installer.restart_odoo()
+        installer.change_file_permis()
+        print("Your odoo is ready to use. Please go to http://<your_ip>:8069 to access it.")
+
+    if q.erpinstaller_in():
+        print("-----------------------------------------------------------------------------------------------------------")
+        print("\n")
+        domain = input("===> Enter your domain (e.g., echopx.org). It will be used as erpinstall.<yourdomain>: ")
+        bearer_token = input("====> Enter bearer token (Optinal): ")
+        print("\n")
+        print("-----------------------------------------------------------------------------------------------------------")
+    
+        php_version = "8.1"
+        tools = tools_files(php_version)
+        tools.install_permission()
+        data = write_data_file(domain, master_password, bearer_token)
+        data.write_env()
+        data.create_nginx_config()
+        data.sim_link()
+
+        # TEST nginx
+        os.system("sudo nginx -t && sudo systemctl restart nginx")
+
+        # Run certbot
+        data.run_certbot()
+
+        db_name = "instance_db"
+        db = database_setup(db_name)
+        db.create_database()
+        try:
+            # Call the function
+            add_permission()
+            print("** Permission's added successfully **")
+        except Exception as e:
+            print(f"Error Unable to add the permission's snippet to the sudoers file: {e}")
+
+        try:
+            subprocess.run("sudo chmod +x /var/www/instance/htdocs/remove_instance.py",True)
+        except Exception as e:
+            print(f"Error Changing mod of remove_instance.py: {e}")
+
+        print(f"Now you can access your installer at: https://erpinstall.{domain}")
+        print("\n")
+    
+    if q.webmin_in():
+        try:
+            installer = Install()
+            installer.Webmin()
+        except Exception as e:
+            print(f"Error Unable to install webmin: {e}")
+    
+    if q.certbot_in():
+        try:
+            c = add_crontab()
+            c.run()
+        except:
+            print("Unable to add cronjob")
+
     print("**   Odoo user created with provided password. **")
     print("**   Odoo instance installed and PostgreSQL password set. **")
     print("\n")
-    print(f"Now you can access your installer at: https://erpinstall.{domain}")
-    print("\n")
+    
 
 if __name__ == "__main__":
     main()
