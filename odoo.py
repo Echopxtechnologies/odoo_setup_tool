@@ -380,6 +380,32 @@ class write_data_file:
         except Exception as e:
             print(f"Error running certbot: {e}")
 
+
+class add_crontab:
+
+    def run(self):
+        cron_command = '0 7 1 * * /usr/bin/sudo certbot renew --force-renewal >> /var/log/certbot-renew.log 2>&1'
+
+        # Read current root crontab
+        try:
+            existing_crontab = subprocess.check_output(['sudo', 'crontab', '-l'], text=True)
+        except subprocess.CalledProcessError:
+            # No crontab exists yet
+            existing_crontab = ''
+
+        # Check if the job already exists
+        if cron_command in existing_crontab:
+            print("Cron job already exists.")
+        else:
+            # Append the new cron job
+            new_crontab = existing_crontab + '\n' + cron_command + '\n'
+
+            # Write the updated crontab
+            process = subprocess.Popen(['sudo', 'crontab', '-'], stdin=subprocess.PIPE, text=True)
+            process.communicate(new_crontab)
+            print("Cron job added.")
+
+
 class database_setup:
     def __init__(self, db_name):
         self.db_name = db_name
@@ -593,6 +619,12 @@ def main():
         installer.Webmin()
     except Exception as e:
         print(f"Error Unable to install webmin: {e}")
+
+    try:
+        c = add_crontab()
+        c.run()
+    except:
+        print("Unable to add cronjob")
     
     print("**   Odoo user created with provided password. **")
     print("**   Odoo instance installed and PostgreSQL password set. **")
